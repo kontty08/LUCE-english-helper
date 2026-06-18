@@ -701,18 +701,18 @@
     let currentModalWordData = null;
     let videoId = 'K-o0r2zSgCE'; // Default fallback
 
-    // Load transcripts.json
+    // Load transcripts.js data
     async function loadTranscripts() {
       try {
-        const response = await fetch('transcripts.json');
-        const data = await response.json();
-        
-        if (data.videoId && data.subtitles) {
-          videoId = data.videoId;
-          subtitleData = data.subtitles;
-        } else if (Array.isArray(data)) {
-          // Backward compatibility
-          subtitleData = data;
+        if (typeof transcriptsData !== 'undefined') {
+          if (transcriptsData.videoId && transcriptsData.subtitles) {
+            videoId = transcriptsData.videoId;
+            subtitleData = transcriptsData.subtitles;
+          } else if (Array.isArray(transcriptsData)) {
+            subtitleData = transcriptsData;
+          }
+        } else {
+          throw new Error("transcriptsData is not defined");
         }
         
         renderSubtitles();
@@ -723,9 +723,10 @@
         document.getElementById('subtitles-list').innerHTML = `
           <div class="empty-state">
             <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: var(--accent-rose);"></i>
-            <div>transcripts.json が見つかりません。<br>VTTから変換された字幕データが必要です。</div>
+            <div>transcripts.js が見つからないか、正しく読み込めませんでした。<br>load_video.py を実行して字幕データを生成してください。</div>
           </div>
         `;
+        lucide.createIcons();
       }
     }
 
