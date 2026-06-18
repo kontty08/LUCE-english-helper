@@ -869,7 +869,12 @@
     let progressInterval;
     function onPlayerStateChange(event) {
       if (event.data === YT.PlayerState.PLAYING) {
-        progressInterval = setInterval(updateActiveSubtitle, 250);
+        // 手動での再生開始時は自動停止を解除
+        if (!seekingFromClick) {
+          stopTime = null;
+        }
+        seekingFromClick = false;
+        progressInterval = setInterval(updateActiveSubtitle, 100); // 100msに縮めて精度向上
       } else {
         clearInterval(progressInterval);
       }
@@ -880,6 +885,14 @@
       if (!player || !player.getCurrentTime) return;
       const currentTime = player.getCurrentTime();
       
+      // 指定箇所までの再生完了による自動停止
+      if (stopTime !== null && currentTime >= stopTime) {
+        player.pauseVideo();
+        stopTime = null;
+        logMicDebug("自動停止しました。");
+        return;
+      }
+
       const index = subtitleData.findIndex(
         sub => currentTime >= sub.start && currentTime <= sub.end
       );
@@ -906,6 +919,17 @@
 
     function seekTo(seconds, index) {
       if (!player) return;
+      
+      // 自動停止ターゲット設定
+      if (subtitleData[index]) {
+        stopTime = subtitleData[index].end;
+        seekingFromClick = true;
+        logMicDebug(`seekTo: 停止ターゲットを設定しました (${stopTime}秒)`);
+      } else {
+        stopTime = null;
+        seekingFromClick = false;
+      }
+
       player.seekTo(seconds, true);
       player.playVideo();
       
