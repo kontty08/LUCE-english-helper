@@ -635,6 +635,11 @@
         <div class="result-box" id="practice-result">
           マイクで話した内容がここに差分表示されます。
         </div>
+        <!-- 🎤 マイクデバッグログエリア -->
+        <div id="mic-debug-container" style="margin-top: 1rem; padding: 0.75rem; background: #0f172a; border: 1px dashed #334155; border-radius: 8px; font-family: monospace; font-size: 0.8rem; color: #94a3b8; max-height: 120px; overflow-y: auto;">
+          <div style="font-weight: bold; color: var(--accent); margin-bottom: 0.25rem;">🎤 マイク動作デバッグログ (ブラウザ内部):</div>
+          <div id="mic-debug-log">※ マイクボタンを押すとここに内部ログが表示されます。</div>
+        </div>
       </div>
     </div>
 
@@ -1067,6 +1072,20 @@
       }
     }
 
+    // Debug helper for Speech Recognition
+    function logMicDebug(msg) {
+      console.log("[MicDebug]", msg);
+      const debugBox = document.getElementById('mic-debug-log');
+      if (debugBox) {
+        const time = new Date().toLocaleTimeString();
+        if (debugBox.innerText.startsWith("※")) {
+          debugBox.innerHTML = "";
+        }
+        debugBox.innerHTML += `<div style="margin-bottom: 2px;">[${time}] ${msg}</div>`;
+        debugBox.scrollTop = debugBox.scrollHeight;
+      }
+    }
+
     // Web Speech API / Mic Setup
     function setupMic() {
       const recordBtn = document.getElementById('btn-record');
@@ -1085,14 +1104,40 @@
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
+      // ── 全ライフサイクルイベントのデバッグ ──
       recognition.onstart = () => {
+        logMicDebug("onstart: 音声認識サービスが開始されました。");
         isRecording = true;
         recordBtn.classList.add('recording');
         micStatus.innerText = "録音中... 字幕に合わせて発音してください。";
       };
 
+      recognition.onaudiostart = () => {
+        logMicDebug("onaudiostart: 音声入力を開始（マイクにアクセス中）。");
+      };
+
+      recognition.onsoundstart = () => {
+        logMicDebug("onsoundstart: 音が検出されました。");
+      };
+
+      recognition.onspeechstart = () => {
+        logMicDebug("onspeechstart: 人の声（会話）が開始されました。");
+      };
+
+      recognition.onspeechend = () => {
+        logMicDebug("onspeechend: 会話が途切れました。");
+      };
+
+      recognition.onsoundend = () => {
+        logMicDebug("onsoundend: 音の検出が終了しました。");
+      };
+
+      recognition.onaudioend = () => {
+        logMicDebug("onaudioend: 音声入力が終了しました。");
+      };
+
       recognition.onerror = (e) => {
-        console.error("Speech recognition error:", e);
+        logMicDebug(`onerror: エラーが発生しました (e.error="${e.error}", e.message="${e.message || ''}")`);
         let errorMsg = "音声認識エラーが発生しました。";
         
         if (e.error === 'not-allowed') {
@@ -1112,22 +1157,27 @@
       };
 
       recognition.onend = () => {
+        logMicDebug("onend: 音声認識が終了しました（完全に停止）。");
         stopRecording();
       };
 
       recognition.onresult = (event) => {
         const speechResult = event.results[0][0].transcript;
+        logMicDebug(`onresult: 認識成功。認識テキスト: "${speechResult}"`);
         processSpeechResult(speechResult);
       };
 
       recordBtn.onclick = () => {
         if (isRecording) {
+          logMicDebug("ボタンクリック: 音声認識を停止します。");
           recognition.stop();
         } else {
+          logMicDebug("ボタンクリック: 音声認識を開始します。");
           // Get the target text
           const targetBox = document.getElementById('practice-target');
           if (targetBox.innerText.includes('字幕を選択するか')) {
             micStatus.innerText = "先に字幕をクリックするか動画を再生してください。";
+            logMicDebug("警告: 対象の字幕が選択されていません。");
             return;
           }
           recognition.start();
