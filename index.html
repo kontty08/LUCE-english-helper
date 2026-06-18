@@ -1092,8 +1092,22 @@
       };
 
       recognition.onerror = (e) => {
-        console.error(e);
-        micStatus.innerText = "音声認識エラーが発生しました。";
+        console.error("Speech recognition error:", e);
+        let errorMsg = "音声認識エラーが発生しました。";
+        
+        if (e.error === 'not-allowed') {
+          errorMsg = "🚫 マイクの使用が許可されていません。ブラウザのアドレスバー（鍵マークや丸マーク）をクリックし、マイクを「許可」してください。";
+        } else if (e.error === 'no-speech') {
+          errorMsg = "🔇 音声が検出されませんでした。もう少しマイクに近づいて発音してください。";
+        } else if (e.error === 'audio-capture') {
+          errorMsg = "🎙️ マイクが見つからないか、別のアプリで占有されています。";
+        } else if (e.error === 'network') {
+          errorMsg = "🌐 ネットワークエラーが発生しました。インターネット接続を確認してください。";
+        } else {
+          errorMsg = `❌ エラーが発生しました: ${e.error}`;
+        }
+        
+        micStatus.innerText = errorMsg;
         stopRecording();
       };
 
