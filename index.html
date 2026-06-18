@@ -1368,14 +1368,47 @@
       });
     }
 
-    // Transcribe audio using Gemini API
-    async function transcribeWithGemini(audioBlob) {
-      const apiKey = localStorage.getItem('gemini_api_key');
-      const modelName = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+    // Transcribe audio using Gemini API (with key rotation and auto-retry on 429)
+    async function transcribeWithGemini(audioBlob, retryCount = 0) {
       const micStatus = document.getElementById('mic-status');
       
-      micStatus.innerText = `⏳ Gemini API (${modelName}) で音声文字起こしを実行中...`;
-      logMicDebug(`transcribeWithGemini: Gemini API (${modelName}) を呼び出しています...`);
+      // 1. APIキーリストの取得
+      let keys = [];
+      try {
+        const savedKeys = localStorage.getItem('gemini_api_keys');
+        if (savedKeys) {
+          keys = JSON.parse(savedKeys);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      
+      // 古いキーしか存在しない場合のフォールバック
+      if (keys.length === 0) {
+        const oldKey = localStorage.getItem('gemini_api_key');
+        if (oldKey) {
+          keys = [oldKey];
+        }
+      }
+
+      if (keys.length === 0) {
+        micStatus.innerText = "⚠️ Gemini APIキーが設定されていません。右上の「Gemini設定」からキーを設定してください。";
+        logMicDebug("警告: Gemini APIキーが未設定です。");
+        openSettingsModal();
+        return;
+      }
+
+      // 2. 現在使用するキーのインデックスを決定
+      let activeIndex = parseInt(localStorage.getItem('gemini_active_key_index') || '0', 10);
+      if (activeIndex >= keys.length) {
+        activeIndex = 0;
+      }
+      
+      const apiKey = keys[activeIndex];
+      const modelName = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
+      
+      micStatus.innerText = `⏳ Gemini API (${modelName}) で音声文字起こしを実行中... (キー ${activeIndex + 1}/${keys.length})`;
+      logMicDebug(`transcribeWithGemini: キー ${activeIndex + 1}/${keys.length} (${modelName}) を使用してAPIを呼び出しています...`);
 
       try {
         const base64Data = await blobToBase64(audioBlob);
@@ -1406,6 +1439,19 @@
         if (!response.ok) {
           const errData = await response.json();
           const errMsg = errData.error ? errData.error.message : 'Unknown API Error';
+          const errStatus = response.status;
+          
+          // 429 または RESOURCE_EXHAUSTED の場合、予備キーがあれば自動ローテーションして再試行
+          if ((errStatus === 429 || errMsg.includes('RESOURCE_EXHAUSTED')) && keys.length > 1 && retryCount < keys.length - 1) {
+            const nextIndex = (activeIndex + 1) % keys.length;
+            localStorage.setItem('gemini_active_key_index', nextIndex.toString());
+            logMicDebug(`⚠️ API制限に達したためキーをローテーションします。次のキー (${nextIndex + 1}/${keys.length}) でリトライ中...`);
+            
+            // 再試行
+            await transcribeWithGemini(audioBlob, retryCount + 1);
+            return;
+          }
+          
           throw new Error(errMsg);
         }
 
@@ -1423,9 +1469,9 @@
         console.error("Gemini API Error:", error);
         let errorMsg = `❌ Geminiエラー: ${error.message}`;
         
-        // Rate Limit (RESOURCE_EXHAUSTED) や 429 エラー時の親切なフォールバック表示
-        if (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429') || error.message.includes('quota')) {
-          errorMsg = "⚠️ Gemini APIの利用制限（1分間に15回まで）に達しました。1〜2分ほど待ってから再度マイクをお試しいただくか、設定から別のAPIキーやモデルへの切り替えをお試しください。";
+        // すべてのキーが制限に達した場合
+        if (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429')) {
+          errorMsg = `⚠️ 登録されているすべてのAPIキー (${keys.length}件) が利用制限に達しました。1〜2分ほど待ってから再試行するか、別のキーを追加してください。`;
         }
         
         micStatus.innerText = errorMsg;
@@ -1451,12 +1497,27 @@
       const select = document.getElementById('select-gemini-model');
       const customInput = document.getElementById('input-custom-model');
       
-      const savedKey = localStorage.getItem('gemini_api_key') || '';
+      // キーの読み込み
+      let savedKeysText = '';
+      const savedKeysJSON = localStorage.getItem('gemini_api_keys');
+      if (savedKeysJSON) {
+        try {
+          const keys = JSON.parse(savedKeysJSON);
+          savedKeysText = keys.join('\n');
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      
+      // フォールバック（古い単一キーの読み込み）
+      if (!savedKeysText) {
+        savedKeysText = localStorage.getItem('gemini_api_key') || '';
+      }
+      
+      keyInput.value = savedKeysText;
+      
+      // モデルの読み込み
       const savedModel = localStorage.getItem('gemini_model') || 'gemini-2.5-flash';
-      
-      keyInput.value = savedKey;
-      
-      // Select box option matching
       const standardModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
       if (standardModels.includes(savedModel)) {
         select.value = savedModel;
@@ -1475,25 +1536,35 @@
     }
 
     function saveSettings() {
-      const key = document.getElementById('input-gemini-key').value.trim();
+      const keysText = document.getElementById('input-gemini-key').value.trim();
       const select = document.getElementById('select-gemini-model');
       const customInput = document.getElementById('input-custom-model');
       
-      // Save Key
-      if (key) {
-        localStorage.setItem('gemini_api_key', key);
+      // キー配列のパースと保存
+      const keys = keysText.split('\n')
+        .map(k => k.trim())
+        .filter(k => k.length > 0);
+        
+      if (keys.length > 0) {
+        localStorage.setItem('gemini_api_keys', JSON.stringify(keys));
+        // 後方互換性（古い単一キー領域にも1件目を保存）
+        localStorage.setItem('gemini_api_key', keys[0]);
       } else {
+        localStorage.removeItem('gemini_api_keys');
         localStorage.removeItem('gemini_api_key');
       }
+      
+      // 現在のアクティブキーインデックスを初期化
+      localStorage.setItem('gemini_active_key_index', '0');
 
-      // Save Model
+      // モデルの保存
       let model = select.value;
       if (model === 'custom') {
         model = customInput.value.trim() || 'gemini-2.5-flash';
       }
       localStorage.setItem('gemini_model', model);
       
-      alert("設定を保存しました。");
+      alert(`設定を保存しました。 (登録キー数: ${keys.length}件)`);
       closeSettingsModal();
       
       // 未設定警告をリセット
