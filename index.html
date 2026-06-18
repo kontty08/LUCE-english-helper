@@ -697,13 +697,25 @@
     let recognition;
     let flaggedWords = [];
     let currentModalWordData = null;
+    let videoId = 'K-o0r2zSgCE'; // Default fallback
 
     // Load transcripts.json
     async function loadTranscripts() {
       try {
         const response = await fetch('transcripts.json');
-        subtitleData = await response.json();
+        const data = await response.json();
+        
+        if (data.videoId && data.subtitles) {
+          videoId = data.videoId;
+          subtitleData = data.subtitles;
+        } else if (Array.isArray(data)) {
+          // Backward compatibility
+          subtitleData = data;
+        }
+        
         renderSubtitles();
+        window.transcriptsLoaded = true;
+        tryInitPlayer();
       } catch (e) {
         console.error("字幕データの読み込みに失敗しました:", e);
         document.getElementById('subtitles-list').innerHTML = `
@@ -743,17 +755,24 @@
 
     // YouTube Player Initialization
     function onYouTubeIframeAPIReady() {
-      player = new YT.Player('player', {
-        videoId: 'K-o0r2zSgCE',
-        playerVars: {
-          'playsinline': 1,
-          'rel': 0,
-          'modestbranding': 1
-        },
-        events: {
-          'onStateChange': onPlayerStateChange
-        }
-      });
+      window.youtubeAPIReady = true;
+      tryInitPlayer();
+    }
+
+    function tryInitPlayer() {
+      if (window.youtubeAPIReady && window.transcriptsLoaded && !player) {
+        player = new YT.Player('player', {
+          videoId: videoId,
+          playerVars: {
+            'playsinline': 1,
+            'rel': 0,
+            'modestbranding': 1
+          },
+          events: {
+            'onStateChange': onPlayerStateChange
+          }
+        });
+      }
     }
 
     let progressInterval;
