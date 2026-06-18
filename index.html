@@ -779,11 +779,18 @@
       <div class="logo-text">LUCE</div>
       <div class="logo-sub">Study Companion</div>
     </div>
-    <!-- ⚙️ 設定ボタン -->
-    <button class="btn-settings" onclick="openSettingsModal()" title="Gemini API設定">
-      <i data-lucide="settings"></i>
-      <span>Gemini 設定</span>
-    </button>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <!-- 📺 動画のインポートボタン -->
+      <button class="btn-settings" onclick="openImportModal()" title="YouTube動画を取り込む" style="border-color: var(--accent-emerald); background-color: rgba(16, 185, 129, 0.05); color: var(--accent-emerald);">
+        <i data-lucide="video" style="color: var(--accent-emerald);"></i>
+        <span>動画の取り込み</span>
+      </button>
+      <!-- ⚙️ 設定ボタン -->
+      <button class="btn-settings" onclick="openSettingsModal()" title="Gemini API設定">
+        <i data-lucide="settings"></i>
+        <span>Gemini 設定</span>
+      </button>
+    </div>
   </header>
 
   <div class="dashboard">
@@ -918,6 +925,30 @@
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%;">
         <button class="btn-cancel" onclick="resetSubtitles()" style="background-color: transparent; border: 1px solid var(--accent-rose); color: var(--accent-rose); font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="字幕編集データを初期状態に戻します">字幕タイミングのリセット</button>
         <button class="btn-add-word" onclick="saveSettings()" style="margin: 0;">設定を保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Video Modal -->
+  <div class="dict-modal" id="import-modal">
+    <div class="dict-content" style="max-width: 500px;">
+      <button class="modal-close" onclick="closeImportModal()"><i data-lucide="x"></i></button>
+      <div class="modal-word-title" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <i data-lucide="video" style="color: var(--accent-emerald);"></i>
+        YouTube動画の取り込み
+      </div>
+      <div style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 1rem;">
+        取り込みたい YouTube 動画の URL または 11桁の動画 ID を入力してください。裏で自動で英語の字幕をダウンロードしてパースし、学習を開始します。
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">YouTube URL または ビデオID</label>
+        <input type="text" id="input-import-url" class="input-api-key" placeholder="https://www.youtube.com/watch?v=..." style="margin-top: 0.25rem; margin-bottom: 0rem;">
+      </div>
+
+      <div class="modal-footer" style="justify-content: flex-end; gap: 0.5rem; width: 100%;">
+        <button class="btn-time-adjust" style="background-color: var(--border); color: var(--text-main); flex: none; padding: 0.5rem 1rem;" onclick="closeImportModal()">キャンセル</button>
+        <button class="btn-add-word" id="btn-import-submit" onclick="importVideo()" style="margin: 0; padding: 0.5rem 1.25rem; font-size: 0.85rem; background-color: var(--accent-emerald);">取り込む</button>
       </div>
     </div>
   </div>
@@ -2016,6 +2047,77 @@
         customInput.style.display = 'block';
       } else {
         customInput.style.display = 'none';
+      }
+    }
+
+    // Import Modal Functions
+    function openImportModal() {
+      document.getElementById('input-import-url').value = '';
+      document.getElementById('import-modal').style.display = 'flex';
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    }
+
+    function closeImportModal() {
+      document.getElementById('import-modal').style.display = 'none';
+    }
+
+    async function importVideo() {
+      const inputVal = document.getElementById('input-import-url').value.trim();
+      const submitBtn = document.getElementById('btn-import-submit');
+      
+      if (!inputVal) {
+        alert("URLまたはビデオIDを入力してください。");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = "取り込み中...";
+
+      try {
+        const res = await fetch(`/api/load_video?url_or_id=${encodeURIComponent(inputVal)}`);
+        
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "CORS/Network error or failed parsing");
+        }
+
+        const data = await res.json();
+        
+        // データの適用
+        videoId = data.videoId;
+        subtitleData = data.subtitles;
+        activeSubIndex = -1;
+        stopTime = null;
+        seekingFromClick = 0;
+        
+        // ローカルストレージのカスタム字幕をクリア（新しい動画のため初期状態からスタート）
+        localStorage.removeItem(`custom_subtitles_${videoId}`);
+
+        // UIの再レンダリング
+        renderSubtitles();
+        
+        // 練習テキストと結果表示の初期化
+        document.getElementById('practice-target').innerText = "字幕を選択するか動画を再生すると、ここに練習用テキストが表示されます。単語をクリックすると英英辞書が開きます。";
+        document.getElementById('practice-result').innerHTML = "マイクで話した内容がここに差分表示されます。";
+        const scoreBox = document.getElementById('accuracy-score');
+        if (scoreBox) scoreBox.innerText = "";
+        
+        // YouTubeプレイヤーの動画読み込み
+        if (player && typeof player.loadVideoById === 'function') {
+          player.loadVideoById(videoId);
+          player.pauseVideo();
+        }
+
+        alert(`動画の取り込みに成功しました！\n動画ID: ${videoId}\n字幕数: ${subtitleData.length} 件`);
+        closeImportModal();
+
+      } catch (e) {
+        alert(`❌ 動画の取り込みに失敗しました:\n${e.message}`);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = "取り込む";
       }
     }
 
