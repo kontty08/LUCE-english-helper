@@ -591,6 +591,46 @@
       background-color: #059669;
       transform: translateY(-1px);
     }
+
+    /* Settings Button & Modal Input */
+    .btn-settings {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+    .btn-settings:hover {
+      background-color: var(--bg-card-hover);
+      border-color: var(--border-focus);
+    }
+    .btn-settings i {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .input-api-key {
+      width: 100%;
+      background-color: var(--bg-main);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .input-api-key:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
   </style>
   <!-- Data file loaded via script tag to bypass CORS on local file:// opens -->
   <script src="transcripts.js"></script>
