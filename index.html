@@ -633,6 +633,52 @@
       outline: none;
       border-color: var(--accent);
     }
+
+    /* キャンセルボタン */
+    .btn-cancel {
+      background-color: var(--border);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-cancel:hover {
+      background-color: var(--bg-card-hover);
+      color: var(--text-main);
+      border-color: var(--border-focus);
+    }
+    
+    /* 字幕項目ホバー時の編集ボタン */
+    .sub-item {
+      position: relative;
+    }
+    .sub-item:hover .btn-sub-edit {
+      opacity: 1 !important;
+    }
+    
+    /* 時間微調整ボタン */
+    .btn-time-adjust {
+      background-color: var(--bg-main);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+      flex: 1;
+      text-align: center;
+      user-select: none;
+    }
+    .btn-time-adjust:hover {
+      border-color: var(--accent);
+      color: var(--text-main);
+      background-color: var(--bg-card-hover);
+    }
   </style>
   <!-- Data file loaded via script tag to bypass CORS on local file:// opens -->
   <script src="transcripts.js"></script>
@@ -671,11 +717,14 @@
           字幕を選択するか動画を再生すると、ここに練習用テキストが表示されます。単語をクリックすると英英辞書が開きます。
         </div>
 
-        <div class="recording-controls">
+        <div class="recording-controls" style="display: flex; align-items: center; gap: 0.75rem;">
           <button class="btn-mic" id="btn-record">
             <i data-lucide="mic"></i>
           </button>
-          <div class="mic-status" id="mic-status">ボタンを押してマイクを起動し、読み上げてください。</div>
+          <button class="btn-cancel" id="btn-cancel" style="display: none;" onclick="cancelRecording()">
+            キャンセル
+          </button>
+          <div class="mic-status" id="mic-status" style="flex: 1;">ボタンを押してマイクを起動し、読み上げてください。</div>
         </div>
 
         <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">判定結果:</div>
@@ -765,12 +814,71 @@
       </div>
       
       <div>
-        <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Gemini API Key</label>
-        <input type="password" id="input-gemini-key" class="input-api-key" placeholder="AIzaSy...">
+        <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Gemini API Keys (1行に1つずつ、複数入力して自動ローテーション可能)</label>
+        <textarea id="input-gemini-key" class="input-api-key" placeholder="AIzaSy...&#10;AIzaSy... (2つ目のキー)" style="height: 80px; resize: vertical; font-family: monospace;"></textarea>
       </div>
 
-      <div class="modal-footer" style="justify-content: flex-end;">
-        <button class="btn-add-word" onclick="saveSettings()">設定を保存</button>
+      <div>
+        <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-top: 0.5rem; margin-bottom: 0.25rem;">字幕の自動スクロール位置</label>
+        <select id="select-scroll-block" class="input-api-key" style="background-color: var(--bg-main); border: 1px solid var(--border); color: var(--text-main); cursor: pointer; margin-bottom: 0.5rem;">
+          <option value="center">画面中央にキープする (おすすめ)</option>
+          <option value="nearest">画面端に追従させる (デフォルト)</option>
+        </select>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%;">
+        <button class="btn-cancel" onclick="resetSubtitles()" style="background-color: transparent; border: 1px solid var(--accent-rose); color: var(--accent-rose); font-size: 0.8rem; padding: 0.5rem 0.75rem;" title="字幕編集データを初期状態に戻します">字幕タイミングのリセット</button>
+        <button class="btn-add-word" onclick="saveSettings()" style="margin: 0;">設定を保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Subtitle Modal -->
+  <div class="dict-modal" id="edit-sub-modal">
+    <div class="dict-content" style="max-width: 500px;">
+      <button class="modal-close" onclick="closeEditSubModal()"><i data-lucide="x"></i></button>
+      <div class="modal-word-title" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <i data-lucide="edit-3" style="color: var(--accent);"></i>
+        字幕セグメントの編集
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">字幕テキスト</label>
+        <textarea id="edit-sub-text" class="input-api-key" style="height: 60px; resize: vertical; margin-top: 0.25rem; margin-bottom: 0.5rem;"></textarea>
+      </div>
+
+      <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <div style="flex: 1;">
+          <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">開始時間 (秒)</label>
+          <input type="number" id="edit-sub-start" class="input-api-key" step="0.01" style="margin-top: 0.25rem; margin-bottom: 0.5rem;">
+          <div style="display: flex; gap: 0.25rem;">
+            <button class="btn-time-adjust" onclick="adjustTime('start', -0.5)">-0.5s</button>
+            <button class="btn-time-adjust" onclick="adjustTime('start', -0.1)">-0.1s</button>
+            <button class="btn-time-adjust" onclick="adjustTime('start', 0.1)">+0.1s</button>
+            <button class="btn-time-adjust" onclick="adjustTime('start', 0.5)">+0.5s</button>
+          </div>
+        </div>
+        <div style="flex: 1;">
+          <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">終了時間 (秒)</label>
+          <input type="number" id="edit-sub-end" class="input-api-key" step="0.01" style="margin-top: 0.25rem; margin-bottom: 0.5rem;">
+          <div style="display: flex; gap: 0.25rem;">
+            <button class="btn-time-adjust" onclick="adjustTime('end', -0.5)">-0.5s</button>
+            <button class="btn-time-adjust" onclick="adjustTime('end', -0.1)">-0.1s</button>
+            <button class="btn-time-adjust" onclick="adjustTime('end', 0.1)">+0.1s</button>
+            <button class="btn-time-adjust" onclick="adjustTime('end', 0.5)">+0.5s</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+        <button class="btn-time-adjust" style="background-color: transparent; border: 1px solid var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; gap: 0.25rem; padding: 0.5rem 0.75rem; flex: none; width: auto;" onclick="testPlayCurrentSegment()">
+          <i data-lucide="play" style="width: 14px; height: 14px;"></i>
+          テスト再生
+        </button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn-time-adjust" style="background-color: var(--border); color: var(--text-main); flex: none; padding: 0.5rem 1rem;" onclick="closeEditSubModal()">キャンセル</button>
+          <button class="btn-add-word" onclick="saveEditedSubtitle()" style="margin: 0; padding: 0.5rem 1rem; font-size: 0.85rem;">変更を保存</button>
+        </div>
       </div>
     </div>
   </div>
@@ -782,6 +890,8 @@
     let subtitleData = [];
     let activeSubIndex = -1;
     let isRecording = false;
+    let isRecordCancelled = false; // 文字起こしキャンセルフラグ
+    let editingSubIndex = -1;       // 編集中の字幕インデックス
     let mediaRecorder = null;
     let audioChunks = [];
     let liveRecognition = null; // リアルタイムプレビュー用
@@ -797,12 +907,27 @@
         if (typeof transcriptsData !== 'undefined') {
           if (transcriptsData.videoId && transcriptsData.subtitles) {
             videoId = transcriptsData.videoId;
-            subtitleData = transcriptsData.subtitles;
-          } else if (Array.isArray(transcriptsData)) {
-            subtitleData = transcriptsData;
+          }
+        }
+        
+        // localStorage からカスタム字幕をロード
+        const savedCustomSubtitles = localStorage.getItem(`custom_subtitles_${videoId}`);
+        if (savedCustomSubtitles) {
+          try {
+            subtitleData = JSON.parse(savedCustomSubtitles);
+            console.log("Loaded custom subtitles from localStorage");
+          } catch (e) {
+            console.error("Failed to parse custom subtitles", e);
+            if (typeof transcriptsData !== 'undefined') {
+              subtitleData = transcriptsData.subtitles || transcriptsData;
+            }
           }
         } else {
-          throw new Error("transcriptsData is not defined");
+          if (typeof transcriptsData !== 'undefined') {
+            subtitleData = transcriptsData.subtitles || transcriptsData;
+          } else {
+            throw new Error("transcriptsData is not defined");
+          }
         }
         
         renderSubtitles();
@@ -839,11 +964,20 @@
         };
 
         item.innerHTML = `
-          <div class="sub-time">${formatTime(sub.start)}</div>
-          <div class="sub-text">${sub.text}</div>
+          <div style="flex: 1; display: flex; align-items: flex-start; gap: 0.5rem; overflow: hidden;">
+            <div class="sub-time">${formatTime(sub.start)}</div>
+            <div class="sub-text">${sub.text}</div>
+          </div>
+          <button class="btn-sub-edit" onclick="event.stopPropagation(); openEditSubModal(${index})" title="字幕のタイミングとテキストを編集" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;">
+            <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
+          </button>
         `;
         listContainer.appendChild(item);
       });
+
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
     }
 
     // YouTube Player Initialization
@@ -910,8 +1044,9 @@
         const currentItem = document.getElementById(`sub-item-${index}`);
         if (currentItem) {
           currentItem.classList.add('active');
-          // Auto-scroll inside list container ('center'で中央に追従、元に戻す場合は 'nearest' に変更)
-          currentItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Auto-scroll inside list container (設定値 'center' または 'nearest' を動的に適用)
+          const scrollBlock = localStorage.getItem('subtitles_scroll_block') || 'center';
+          currentItem.scrollIntoView({ behavior: 'smooth', block: scrollBlock });
         }
 
         // Set practice target text
@@ -1263,6 +1398,12 @@
         // 全トラックの停止（マイク使用インジケータを消す）
         stream.getTracks().forEach(track => track.stop());
         
+        if (isRecordCancelled) {
+          logMicDebug("録音データは破棄されました（キャンセル）。");
+          isRecordCancelled = false; // フラグリセット
+          return;
+        }
+        
         const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
         logMicDebug(`録音が停止しました。Blobサイズ: ${audioBlob.size} bytes, タイプ: ${audioBlob.type}`);
         
@@ -1272,7 +1413,9 @@
 
       mediaRecorder.start();
       isRecording = true;
+      isRecordCancelled = false;
       recordBtn.classList.add('recording');
+      document.getElementById('btn-cancel').style.display = 'inline-block';
       micStatus.innerText = "🎤 録音中... 字幕に合わせて発音し、終了したらもう一度ボタンを押してください。";
       logMicDebug("startRecording: 録音を開始しました。");
       
@@ -1305,6 +1448,7 @@
       
       isRecording = false;
       document.getElementById('btn-record').classList.remove('recording');
+      document.getElementById('btn-cancel').style.display = 'none';
       document.getElementById('mic-status').innerText = "ボタンを押してマイクを起動し、読み上げてください。";
     }
 
@@ -1692,6 +1836,10 @@
         customInput.value = savedModel;
         customInput.style.display = 'block';
       }
+
+      // スクロール追従位置の読み込み
+      const savedScrollBlock = localStorage.getItem('subtitles_scroll_block') || 'center';
+      document.getElementById('select-scroll-block').value = savedScrollBlock;
       
       modal.style.display = 'flex';
     }
@@ -1728,6 +1876,10 @@
         model = customInput.value.trim() || 'gemini-2.5-flash';
       }
       localStorage.setItem('gemini_model', model);
+
+      // スクロール追従位置の保存
+      const scrollBlock = document.getElementById('select-scroll-block').value;
+      localStorage.setItem('subtitles_scroll_block', scrollBlock);
       
       alert(`設定を保存しました。 (登録キー数: ${keys.length}件)`);
       closeSettingsModal();
