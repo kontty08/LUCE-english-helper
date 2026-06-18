@@ -910,8 +910,8 @@
         const currentItem = document.getElementById(`sub-item-${index}`);
         if (currentItem) {
           currentItem.classList.add('active');
-          // Auto-scroll inside list container
-          currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          // Auto-scroll inside list container ('center'で中央に追従、元に戻す場合は 'nearest' に変更)
+          currentItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         // Set practice target text
@@ -1029,6 +1029,34 @@
         currentModalWordData.definition = 'No definition found';
         currentModalWordData.example = '';
       }
+
+      // ボタンのフラグ状態をアップデート
+      updateModalFlagButton();
+    }
+
+    // 辞書モーダルの「フラグ（登録）」ボタンの状態を、登録状況に応じて動的に更新する
+    function updateModalFlagButton() {
+      const btn = document.getElementById('btn-modal-action');
+      if (!btn || !currentModalWordData) return;
+      
+      const isAlreadyFlagged = flaggedWords.some(
+        w => w.word.toLowerCase() === currentModalWordData.word.toLowerCase()
+      );
+      
+      if (isAlreadyFlagged) {
+        btn.innerText = "フラグ済み (登録済み)";
+        btn.style.backgroundColor = "var(--border)";
+        btn.style.color = "var(--text-muted)";
+        btn.style.cursor = "not-allowed";
+        btn.style.transform = "none";
+        btn.onclick = null;
+      } else {
+        btn.innerText = "この単語をフラグする";
+        btn.style.backgroundColor = "var(--accent-emerald)";
+        btn.style.color = "white";
+        btn.style.cursor = "pointer";
+        btn.onclick = addCurrentWord;
+      }
     }
 
     function closeModal() {
@@ -1087,6 +1115,8 @@
         saveVocabToStorage();
         renderVocabList();
       }
+      
+      updateModalFlagButton();
       closeModal();
     }
 
@@ -1197,6 +1227,12 @@
 
     // MediaRecorder & Gemini Setup
     async function startRecording() {
+      // ── 改善点1: 録音開始時にYouTube動画を自動的に一時停止する ──
+      if (player && typeof player.pauseVideo === 'function') {
+        player.pauseVideo();
+        logMicDebug("startRecording: 録音開始のため動画を一時停止しました。");
+      }
+
       const recordBtn = document.getElementById('btn-record');
       const micStatus = document.getElementById('mic-status');
       
