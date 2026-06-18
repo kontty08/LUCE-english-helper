@@ -102,6 +102,62 @@
       text-transform: uppercase;
     }
 
+    /* Video Selector styling */
+    .video-selector-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.25rem 0.75rem;
+      height: 38px;
+    }
+
+    .select-video-dropdown {
+      background: none;
+      border: none;
+      color: var(--text-main);
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding-right: 1.5rem;
+      cursor: pointer;
+      max-width: 250px;
+      outline: none;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right center;
+    }
+    
+    .select-video-dropdown option {
+      background-color: var(--bg-panel);
+      color: var(--text-main);
+    }
+
+    .btn-delete-video {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-delete-video:hover {
+      color: var(--accent-rose);
+      background-color: rgba(244, 63, 94, 0.1);
+    }
+
     /* Layout Grid */
     .dashboard {
       flex: 1;
@@ -780,6 +836,17 @@
       <div class="logo-sub">Study Companion</div>
     </div>
     <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <!-- 📺 動画のライブラリ選択 -->
+      <div class="video-selector-container">
+        <i data-lucide="library" style="width: 16px; height: 16px; color: var(--accent);"></i>
+        <select id="select-video-dropdown" class="select-video-dropdown" onchange="switchVideo(this.value)">
+          <option value="">動画を読み込み中...</option>
+        </select>
+        <button class="btn-delete-video" onclick="deleteCurrentVideo()" title="この動画をライブラリから削除">
+          <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+
       <!-- 📺 動画のインポートボタン -->
       <button class="btn-settings" onclick="openImportModal()" title="YouTube動画を取り込む" style="border-color: var(--accent-emerald); background-color: rgba(16, 185, 129, 0.05); color: var(--accent-emerald);">
         <i data-lucide="video" style="color: var(--accent-emerald);"></i>
@@ -1024,6 +1091,7 @@
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
     let player;
+    let videoList = [];           // 動画ライブラリのリスト
     let subtitleData = [];
     let activeSubIndex = -1;
     let isRecording = false;
@@ -1039,36 +1107,47 @@
     let currentModalWordData = null;
     let videoId = 'K-o0r2zSgCE'; // Default fallback
 
-    // Load transcripts.js data
+    // Load transcripts.js data & initialize video library
     async function loadTranscripts() {
       try {
-        if (typeof transcriptsData !== 'undefined') {
-          if (transcriptsData.videoId && transcriptsData.subtitles) {
-            videoId = transcriptsData.videoId;
-          }
-        }
-        
-        // localStorage からカスタム字幕をロード
-        const savedCustomSubtitles = localStorage.getItem(`custom_subtitles_${videoId}`);
-        if (savedCustomSubtitles) {
-          try {
-            subtitleData = JSON.parse(savedCustomSubtitles);
-            console.log("Loaded custom subtitles from localStorage");
-          } catch (e) {
-            console.error("Failed to parse custom subtitles", e);
-            if (typeof transcriptsData !== 'undefined') {
-              subtitleData = transcriptsData.subtitles || transcriptsData;
-            }
-          }
+        // 1. APIから動画リストを取得
+        const listRes = await fetch('/api/list_videos');
+        if (listRes.ok) {
+          videoList = await listRes.json();
         } else {
-          if (typeof transcriptsData !== 'undefined') {
-            subtitleData = transcriptsData.subtitles || transcriptsData;
-          } else {
-            throw new Error("transcriptsData is not defined");
-          }
+          console.warn("Failed to fetch video list from API");
         }
         
-        renderSubtitles();
+        // 動画リストが空の場合のハンドリング
+        if (videoList.length === 0) {
+          document.getElementById('subtitles-list').innerHTML = `
+            <div class="empty-state">
+              <i data-lucide="video" style="width: 48px; height: 48px; color: var(--accent);"></i>
+              <div>ライブラリに動画が登録されていません。<br>上の「動画の取り込み」ボタンからYouTube動画をインポートしてください。</div>
+            </div>
+          `;
+          refreshVideoDropdown();
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+          }
+          openImportModal();
+          return;
+        }
+
+        // 2. アクティブな動画IDの決定 (localStorage または リストの最初)
+        const savedLastVideo = localStorage.getItem('last_active_video_id');
+        if (savedLastVideo && videoList.some(v => v.videoId === savedLastVideo)) {
+          videoId = savedLastVideo;
+        } else {
+          videoId = videoList[0].videoId;
+          localStorage.setItem('last_active_video_id', videoId);
+        }
+
+        refreshVideoDropdown();
+
+        // 3. 動画データの読み込み
+        await loadVideoData(videoId);
+        
         window.transcriptsLoaded = true;
         tryInitPlayer();
       } catch (e) {
@@ -1076,9 +1155,193 @@
         document.getElementById('subtitles-list').innerHTML = `
           <div class="empty-state">
             <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: var(--accent-rose);"></i>
-            <div>transcripts.js が見つからないか、正しく読み込めませんでした。<br>load_video.py を実行して字幕データを生成してください。</div>
+            <div>動画リストの読み込みに失敗しました。サーバーが起動しているか確認してください。</div>
           </div>
         `;
+        if (typeof lucide !== 'undefined') {
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // Load individual video subtitles data
+    async function loadVideoData(id) {
+      try {
+        const res = await fetch(`/api/get_video?v=${id}`);
+        if (!res.ok) {
+          throw new Error("Failed to fetch video details");
+        }
+        const data = await res.json();
+        
+        // localStorage からカスタム字幕をロード
+        const savedCustomSubtitles = localStorage.getItem(`custom_subtitles_${id}`);
+        if (savedCustomSubtitles) {
+          try {
+            subtitleData = JSON.parse(savedCustomSubtitles);
+            console.log(`Loaded custom subtitles for ${id} from localStorage`);
+          } catch (e) {
+            console.error("Failed to parse custom subtitles", e);
+            subtitleData = data.subtitles || [];
+          }
+        } else {
+          subtitleData = data.subtitles || [];
+        }
+
+        renderSubtitles();
+
+        // 練習ターゲットと結果の初期化
+        document.getElementById('practice-target').innerText = "字幕を選択するか動画を再生すると、ここに練習用テキストが表示されます。単語をクリックすると英英辞書が開きます。";
+        document.getElementById('practice-result').innerHTML = "マイクで話した内容がここに差分表示されます。";
+        const scoreBox = document.getElementById('accuracy-score');
+        if (scoreBox) scoreBox.innerText = "";
+
+        activeSubIndex = -1;
+        stopTime = null;
+        seekingFromClick = 0;
+      } catch (e) {
+        console.error("Failed to load video data:", e);
+        alert("動画データのロードに失敗しました。");
+      }
+    }
+
+    // Switch video & update player
+    async function switchVideo(id) {
+      if (!id || id === videoId) return;
+      
+      videoId = id;
+      localStorage.setItem('last_active_video_id', id);
+      
+      await loadVideoData(id);
+      
+      // YouTubeプレイヤーの動画更新
+      if (player && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(id);
+        player.pauseVideo();
+      }
+      
+      refreshVideoDropdown();
+    }
+
+    // Sync YouTube video title with local backend database
+    async function syncVideoTitle() {
+      if (!player || typeof player.getVideoData !== 'function') return;
+      const videoData = player.getVideoData();
+      if (!videoData) return;
+      const realTitle = videoData.title;
+      const currentVideoId = videoData.video_id || videoId;
+      
+      if (!realTitle || realTitle === "Video" || realTitle === "Video ID") return;
+
+      // 現在のvideoListのタイトルと一致しているかチェック
+      const currentVideo = videoList.find(v => v.videoId === currentVideoId);
+      if (currentVideo && currentVideo.title === realTitle) {
+        return; // すでに同期されている
+      }
+
+      console.log(`[Title Sync] Synchronizing title for ${currentVideoId}: "${realTitle}"`);
+      try {
+        const res = await fetch(`/api/update_title?v=${currentVideoId}&title=${encodeURIComponent(realTitle)}`);
+        if (res.ok) {
+          if (currentVideo) {
+            currentVideo.title = realTitle;
+          } else {
+            videoList.push({ videoId: currentVideoId, title: realTitle });
+          }
+          refreshVideoDropdown();
+        }
+      } catch (e) {
+        console.error("Failed to sync video title:", e);
+      }
+    }
+
+    // Delete current video from library and local storage
+    async function deleteCurrentVideo() {
+      if (!videoId) return;
+      
+      const currentVideo = videoList.find(v => v.videoId === videoId);
+      const titleToShow = currentVideo ? (currentVideo.title || videoId) : videoId;
+      
+      if (!confirm(`動画「${titleToShow}」をライブラリから削除しますか？\n(この動画に関連するローカルの字幕編集データも消去されます)`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/delete_video?v=${videoId}`);
+        if (!res.ok) {
+          throw new Error("Failed to delete video from server");
+        }
+        
+        // localStorage からカスタム字幕を削除
+        localStorage.removeItem(`custom_subtitles_${videoId}`);
+        
+        alert("動画をライブラリから削除しました。");
+        
+        // videoListから削除
+        videoList = videoList.filter(v => v.videoId !== videoId);
+        
+        // 次にアクティブにする動画を決定
+        if (videoList.length > 0) {
+          videoId = videoList[0].videoId;
+          localStorage.setItem('last_active_video_id', videoId);
+          refreshVideoDropdown();
+          await loadVideoData(videoId);
+          if (player && typeof player.loadVideoById === 'function') {
+            player.loadVideoById(videoId);
+            player.pauseVideo();
+          }
+        } else {
+          videoId = '';
+          localStorage.removeItem('last_active_video_id');
+          subtitleData = [];
+          renderSubtitles();
+          refreshVideoDropdown();
+          
+          document.getElementById('practice-target').innerText = "字幕を選択するか動画を再生すると、ここに練習用テキストが表示されます。単語をクリックすると英英辞書が開きます。";
+          document.getElementById('practice-result').innerHTML = "マイクで話した内容がここに差分表示されます。";
+          const scoreBox = document.getElementById('accuracy-score');
+          if (scoreBox) scoreBox.innerText = "";
+          
+          if (player && typeof player.stopVideo === 'function') {
+            player.stopVideo();
+          }
+          
+          // ライブラリ空のアラート
+          document.getElementById('subtitles-list').innerHTML = `
+            <div class="empty-state">
+              <i data-lucide="video" style="width: 48px; height: 48px; color: var(--accent);"></i>
+              <div>ライブラリに動画が登録されていません。<br>上の「動画の取り込み」ボタンからYouTube動画をインポートしてください。</div>
+            </div>
+          `;
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+          }
+          openImportModal();
+        }
+      } catch (e) {
+        console.error("Failed to delete video:", e);
+        alert(`❌ 動画の削除に失敗しました:\n${e.message}`);
+      }
+    }
+
+    // Refresh Selector Dropdown options
+    function refreshVideoDropdown() {
+      const dropdown = document.getElementById('select-video-dropdown');
+      if (!dropdown) return;
+      dropdown.innerHTML = '';
+      if (videoList.length === 0) {
+        dropdown.innerHTML = '<option value="">動画がありません</option>';
+        return;
+      }
+      videoList.forEach(vid => {
+        const option = document.createElement('option');
+        option.value = vid.videoId;
+        option.textContent = vid.title || vid.videoId;
+        if (vid.videoId === videoId) {
+          option.selected = true;
+        }
+        dropdown.appendChild(option);
+      });
+      if (typeof lucide !== 'undefined') {
         lucide.createIcons();
       }
     }
@@ -1134,7 +1397,11 @@
             'modestbranding': 1
           },
           events: {
-            'onStateChange': onPlayerStateChange
+            'onStateChange': onPlayerStateChange,
+            'onReady': () => {
+              // プレイヤーのReady時にもタイトル取得を試みる
+              setTimeout(syncVideoTitle, 1000);
+            }
           }
         });
       }
@@ -1149,8 +1416,13 @@
           stopTime = null;
         }
         progressInterval = setInterval(updateActiveSubtitle, 100); // 100msに縮めて精度向上
+        syncVideoTitle();
       } else {
         clearInterval(progressInterval);
+      }
+
+      if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.BUFFERING) {
+        syncVideoTitle();
       }
     }
 
@@ -2092,8 +2364,17 @@
         stopTime = null;
         seekingFromClick = 0;
         
+        localStorage.setItem('last_active_video_id', videoId);
+        
         // ローカルストレージのカスタム字幕をクリア（新しい動画のため初期状態からスタート）
         localStorage.removeItem(`custom_subtitles_${videoId}`);
+
+        // ビデオリストを再ロードしてドロップダウンを同期
+        const listRes = await fetch('/api/list_videos');
+        if (listRes.ok) {
+          videoList = await listRes.json();
+        }
+        refreshVideoDropdown();
 
         // UIの再レンダリング
         renderSubtitles();

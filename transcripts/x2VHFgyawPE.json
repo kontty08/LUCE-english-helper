@@ -1,4 +1,4 @@
-const transcriptsData = {
+{
   "videoId": "x2VHFgyawPE",
   "subtitles": [
     {
@@ -5481,5 +5481,6 @@ const transcriptsData = {
       "end": 4191.23,
       "text": "That was not on my bingo card, Just a little powder."
     }
-  ]
-};
+  ],
+  "title": "Ferrari Luce (Default)"
+}
