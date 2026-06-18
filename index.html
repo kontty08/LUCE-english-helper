@@ -1366,17 +1366,6 @@
       modal.style.display = 'flex';
     }
 
-    // Toggle custom model text input based on select value
-    function toggleCustomModelInput() {
-      const select = document.getElementById('select-gemini-model');
-      const customInput = document.getElementById('input-custom-model');
-      if (select.value === 'custom') {
-        customInput.style.display = 'block';
-      } else {
-        customInput.style.display = 'none';
-      }
-    }
-
     function closeSettingsModal() {
       document.getElementById('settings-modal').style.display = 'none';
     }
