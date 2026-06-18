@@ -233,10 +233,28 @@ def main():
         # Reconstruct into sentences
         print("📝 字幕をセンテンスベースに再構成しています...")
         subtitles = reconstruct_into_sentences(raw_subtitles)
+
+        # Get video title
+        video_title = f"Video ({video_id})"
+        try:
+            print("🔍 動画のタイトルを取得しています...")
+            title_cmd = [
+                "yt-dlp",
+                "--print", "title",
+                "--skip-download",
+                f"https://www.youtube.com/watch?v={video_id}"
+            ]
+            title_result = subprocess.run(title_cmd, capture_output=True, text=True, check=True)
+            if title_result.stdout:
+                video_title = title_result.stdout.strip()
+                print(f"📌 タイトル: {video_title}")
+        except Exception as e:
+            print(f"⚠️ タイトルの取得に失敗しました: {e}")
         
         # Structure new JSON
         data_to_save = {
             "videoId": video_id,
+            "title": video_title,
             "subtitles": subtitles
         }
         

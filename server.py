@@ -61,7 +61,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 
                 # 個別JSONファイルとしても保存する
                 if video_id:
-                    data["title"] = f"Video ({video_id})" # 初期仮タイトル
+                    data["title"] = data.get("title") or f"Video ({video_id})"
                     target_json = trans_dir / f"{video_id}.json"
                     with open(target_json, "w", encoding="utf-8") as out:
                         json.dump(data, out, ensure_ascii=False, indent=2)
@@ -185,7 +185,8 @@ def init_transcripts_dir():
             if video_id:
                 target_json = trans_dir / f"{video_id}.json"
                 if not target_json.exists():
-                    data["title"] = "Ferrari Luce (Default)"
+                    fallback_title = "Inside the Mind of Anthropic CEO Dario Amodei | The Circuit | Extended Interview" if video_id == "x2VHFgyawPE" else "Ferrari Luce (Default)"
+                    data["title"] = data.get("title") or fallback_title
                     with open(target_json, "w", encoding="utf-8") as out:
                         json.dump(data, out, ensure_ascii=False, indent=2)
                     print(f"[Init] Migrated transcripts.js into transcripts/{video_id}.json")
