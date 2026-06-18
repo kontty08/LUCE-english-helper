@@ -782,6 +782,7 @@
     let isRecording = false;
     let mediaRecorder = null;
     let audioChunks = [];
+    let liveRecognition = null; // リアルタイムプレビュー用
     let flaggedWords = [];
     let currentModalWordData = null;
     let videoId = 'K-o0r2zSgCE'; // Default fallback
@@ -1210,15 +1211,85 @@
       recordBtn.classList.add('recording');
       micStatus.innerText = "🎤 録音中... 字幕に合わせて発音し、終了したらもう一度ボタンを押してください。";
       logMicDebug("startRecording: 録音を開始しました。");
+      
+      // ── ライブプレビュー用音声認識の起動 ──
+      setupLiveRecognition();
+      if (liveRecognition) {
+        try {
+          liveRecognition.start();
+          logMicDebug("liveRecognition: リアルタイム音声認識を起動しました。");
+        } catch (e) {
+          console.warn("liveRecognition startup failed:", e);
+        }
+      }
     }
 
     function stopRecording() {
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
       }
+      
+      // ── ライブプレビュー用音声認識の停止 ──
+      if (liveRecognition) {
+        try {
+          liveRecognition.stop();
+          logMicDebug("liveRecognition: リアルタイム音声認識を停止しました。");
+        } catch (e) {
+          // ignore
+        }
+      }
+      
       isRecording = false;
       document.getElementById('btn-record').classList.remove('recording');
       document.getElementById('mic-status').innerText = "ボタンを押してマイクを起動し、読み上げてください。";
+    }
+
+    // ── ライブプレビュー用音声認識の初期化 ──
+    function setupLiveRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        logMicDebug("SpeechRecognition: このブラウザはリアルタイムプレビュー非対応です。");
+        liveRecognition = null;
+        return;
+      }
+
+      liveRecognition = new SpeechRecognition();
+      liveRecognition.lang = 'en-US';
+      liveRecognition.continuous = true;
+      liveRecognition.interimResults = true; // 途中結果も取得
+
+      liveRecognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        const liveText = (finalTranscript + interimTranscript).trim();
+        if (liveText) {
+          // 判定結果表示領域（practice-result）に一時的なプレビューとしてリアルタイム表示
+          const resultBox = document.getElementById('practice-result');
+          resultBox.innerHTML = `
+            <div style="font-style: italic; color: var(--accent); opacity: 0.8;">
+              💬 リアルタイムプレビュー: "${liveText} ..."
+            </div>
+          `;
+        }
+      };
+
+      liveRecognition.onerror = (e) => {
+        // エラー（networkなど）が発生しても、MediaRecorderの録音は止めない
+        logMicDebug(`liveRecognition (プレビュー) エラー: e.error="${e.error}" (録音はバックグラウンドで継続します)`);
+      };
+
+      liveRecognition.onend = () => {
+        logMicDebug("liveRecognition (プレビュー) が終了しました。");
+      };
     }
 
     function setupMic() {
