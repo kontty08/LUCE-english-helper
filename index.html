@@ -927,6 +927,33 @@
       if (!currentModalWordData) return;
       const utterance = new SpeechSynthesisUtterance(currentModalWordData.word);
       utterance.lang = 'en-US';
+      
+      // ブラウザ・OSに登録されている音声リストを取得
+      const voices = window.speechSynthesis.getVoices();
+      let selectedVoice = null;
+      
+      // 高品質な英語音声エンジンの優先順位リスト
+      const voicePriorities = [
+        'Google US English', // Chromeの高品質英語音声
+        'Siri',              // macOS Siri 英語
+        'Samantha',          // macOS Samantha（標準的な高品質女性音声）
+        'Daniel'             // macOS Daniel（イギリス英語高品質）
+      ];
+      
+      for (const name of voicePriorities) {
+        selectedVoice = voices.find(v => v.name.includes(name) && v.lang.startsWith('en'));
+        if (selectedVoice) break;
+      }
+      
+      // 優先音声が見つからない場合は、en-USまたは英語の任意の音声を選択
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
+      }
+      
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+      
       window.speechSynthesis.speak(utterance);
     }
 
