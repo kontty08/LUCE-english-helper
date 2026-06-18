@@ -642,6 +642,11 @@
       <div class="logo-text">LUCE</div>
       <div class="logo-sub">Study Companion</div>
     </div>
+    <!-- ⚙️ 設定ボタン -->
+    <button class="btn-settings" onclick="openSettingsModal()" title="Gemini API設定">
+      <i data-lucide="settings"></i>
+      <span>Gemini 設定</span>
+    </button>
   </header>
 
   <div class="dashboard">
@@ -730,6 +735,29 @@
 
       <div class="modal-footer">
         <button class="btn-add-word" onclick="addCurrentWord()">この単語をフラグする</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="dict-modal" id="settings-modal">
+    <div class="dict-content">
+      <button class="modal-close" onclick="closeSettingsModal()"><i data-lucide="x"></i></button>
+      <div class="modal-word-title" style="display: flex; align-items: center; gap: 0.5rem;">
+        <i data-lucide="settings" style="color: var(--accent);"></i>
+        Gemini API 設定
+      </div>
+      <div style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.5rem;">
+        音声の文字起こし（Speech to Text）を Gemini 1.5 Flash を使って実行するための API キーを入力してください。API キーはブラウザの localStorage にローカル保存されます。
+      </div>
+      
+      <div>
+        <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted);">Gemini API Key</label>
+        <input type="password" id="input-gemini-key" class="input-api-key" placeholder="AIzaSy...">
+      </div>
+
+      <div class="modal-footer" style="justify-content: flex-end;">
+        <button class="btn-add-word" onclick="saveSettings()">設定を保存</button>
       </div>
     </div>
   </div>
