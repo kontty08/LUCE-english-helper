@@ -1356,6 +1356,120 @@
       };
     }
 
+    function cancelRecording() {
+      isRecordCancelled = true;
+      logMicDebug("cancelRecording: 録音をキャンセルしました。");
+      
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      
+      if (liveRecognition) {
+        try {
+          liveRecognition.abort();
+          logMicDebug("liveRecognition: リアルタイム音声認識を強制終了しました。");
+        } catch (e) {
+          // ignore
+        }
+      }
+      
+      isRecording = false;
+      document.getElementById('btn-record').classList.remove('recording');
+      document.getElementById('btn-cancel').style.display = 'none';
+      document.getElementById('mic-status').innerText = "録音をキャンセルしました。";
+      document.getElementById('practice-result').innerHTML = `
+        <div style="color: var(--text-muted); font-style: italic;">
+          録音がキャンセルされました。再度録音ボタンを押してやり直してください。
+        </div>
+      `;
+    }
+
+    // ── 字幕編集モーダル関連 of JS関数 ──
+    function openEditSubModal(index) {
+      editingSubIndex = index;
+      const sub = subtitleData[index];
+      if (!sub) return;
+
+      document.getElementById('edit-sub-text').value = sub.text;
+      document.getElementById('edit-sub-start').value = sub.start;
+      document.getElementById('edit-sub-end').value = sub.end;
+
+      document.getElementById('edit-sub-modal').style.display = 'flex';
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    }
+
+    function closeEditSubModal() {
+      document.getElementById('edit-sub-modal').style.display = 'none';
+      editingSubIndex = -1;
+    }
+
+    function adjustTime(type, delta) {
+      const inputId = type === 'start' ? 'edit-sub-start' : 'edit-sub-end';
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      let val = parseFloat(input.value) || 0;
+      val = Math.max(0, parseFloat((val + delta).toFixed(2)));
+      input.value = val;
+    }
+
+    function testPlayCurrentSegment() {
+      if (!player || editingSubIndex === -1) return;
+      const start = parseFloat(document.getElementById('edit-sub-start').value) || 0;
+      const end = parseFloat(document.getElementById('edit-sub-end').value) || 0;
+      
+      stopTime = end;
+      seekingFromClick = true;
+      player.seekTo(start, true);
+      player.playVideo();
+      logMicDebug(`testPlayCurrentSegment: ${start}秒 〜 ${end}秒 を再生`);
+    }
+
+    function saveEditedSubtitle() {
+      if (editingSubIndex === -1) return;
+      const newText = document.getElementById('edit-sub-text').value.trim();
+      const newStart = parseFloat(document.getElementById('edit-sub-start').value) || 0;
+      const newEnd = parseFloat(document.getElementById('edit-sub-end').value) || 0;
+
+      if (!newText) {
+        alert("テキストを入力してください。");
+        return;
+      }
+      if (newStart >= newEnd) {
+        alert("終了時間は開始時間より大きい値にしてください。");
+        return;
+      }
+
+      subtitleData[editingSubIndex].text = newText;
+      subtitleData[editingSubIndex].start = newStart;
+      subtitleData[editingSubIndex].end = newEnd;
+
+      localStorage.setItem(`custom_subtitles_${videoId}`, JSON.stringify(subtitleData));
+      renderSubtitles();
+
+      if (activeSubIndex === editingSubIndex) {
+        setPracticeTarget(newText);
+      }
+
+      alert("字幕の変更を保存しました。");
+      closeEditSubModal();
+    }
+
+    function resetSubtitles() {
+      if (confirm("すべての字幕の編集（タイミングおよびテキスト）を消去して初期状態に戻しますか？")) {
+        localStorage.removeItem(`custom_subtitles_${videoId}`);
+        if (typeof transcriptsData !== 'undefined' && transcriptsData.subtitles) {
+          subtitleData = JSON.parse(JSON.stringify(transcriptsData.subtitles));
+        } else {
+          subtitleData = [];
+        }
+        renderSubtitles();
+        alert("字幕タイミングを初期状態にリセットしました。");
+        closeSettingsModal();
+      }
+    }
+
     function setupMic() {
       const recordBtn = document.getElementById('btn-record');
       const micStatus = document.getElementById('mic-status');
