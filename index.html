@@ -679,6 +679,72 @@
       color: var(--text-main);
       background-color: var(--bg-card-hover);
     }
+
+    /* 単語ブロック編集エリア */
+    .word-chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background-color: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      min-height: 50px;
+      margin-top: 0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .word-chip {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .word-chip:hover {
+      border-color: var(--accent);
+      background-color: var(--bg-card-hover);
+      transform: translateY(-1px);
+    }
+    .word-chip.selected {
+      background-color: var(--accent-emerald);
+      border-color: var(--accent-emerald);
+      color: white;
+      font-weight: 500;
+    }
+    .word-block-controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .btn-block-action {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.5rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-block-action:hover:not(:disabled) {
+      border-color: var(--accent);
+      background-color: var(--bg-card-hover);
+      color: var(--accent);
+    }
+    .btn-block-action:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   </style>
   <!-- Data file loaded via script tag to bypass CORS on local file:// opens -->
   <script src="transcripts.js"></script>
@@ -847,6 +913,23 @@
         <textarea id="edit-sub-text" class="input-api-key" style="height: 60px; resize: vertical; margin-top: 0.25rem; margin-bottom: 0.5rem;"></textarea>
       </div>
 
+      <div style="margin-bottom: 1rem;">
+        <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">単語ブロック編集 (クリックして複数選択し、前後の字幕に送れます)</label>
+        <div class="word-chips-container" id="edit-word-chips">
+          <!-- 単語チップがここに動的に生成されます -->
+        </div>
+        <div class="word-block-controls">
+          <button class="btn-block-action" id="btn-send-prev" onclick="sendWordsToPrev()" disabled>
+            <i data-lucide="arrow-left" style="width: 14px; height: 14px;"></i>
+            前の字幕へ送る
+          </button>
+          <button class="btn-block-action" id="btn-send-next" onclick="sendWordsToNext()" disabled>
+            次の字幕へ送る
+            <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+          </button>
+        </div>
+      </div>
+
       <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
         <div style="flex: 1;">
           <label style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">開始時間 (秒)</label>
@@ -897,6 +980,7 @@
     let liveRecognition = null; // リアルタイムプレビュー用
     let stopTime = null;         // 特定字幕クリック時の自動停止時間
     let seekingFromClick = 0;     // 字幕クリックによる再生フラグ (タイムスタンプ)
+    let editingWords = [];        // 編集中の字幕の単語リスト
     let flaggedWords = [];
     let currentModalWordData = null;
     let videoId = 'K-o0r2zSgCE'; // Default fallback
@@ -1534,9 +1618,25 @@
       const sub = subtitleData[index];
       if (!sub) return;
 
-      document.getElementById('edit-sub-text').value = sub.text;
+      const textInput = document.getElementById('edit-sub-text');
+      textInput.value = sub.text;
+      
+      // テキスト入力の変更に合わせて単語ブロックを再生成するハンドラー
+      textInput.oninput = function() {
+        const text = this.value;
+        const rawWords = text.trim().split(/\s+/);
+        editingWords = rawWords.filter(w => w.length > 0).map(w => ({
+          text: w,
+          selected: false
+        }));
+        renderWordChips();
+      };
+
       document.getElementById('edit-sub-start').value = sub.start;
       document.getElementById('edit-sub-end').value = sub.end;
+
+      // 単語ブロックの初期化
+      initWordChips(sub.text);
 
       document.getElementById('edit-sub-modal').style.display = 'flex';
       if (typeof lucide !== 'undefined') {
@@ -1547,6 +1647,103 @@
     function closeEditSubModal() {
       document.getElementById('edit-sub-modal').style.display = 'none';
       editingSubIndex = -1;
+      editingWords = [];
+    }
+
+    // ── 単語ブロック編集用のヘルパー関数 ──
+    function initWordChips(text) {
+      const rawWords = text.trim().split(/\s+/);
+      editingWords = rawWords.filter(w => w.length > 0).map(w => ({
+        text: w,
+        selected: false
+      }));
+      renderWordChips();
+    }
+
+    function renderWordChips() {
+      const container = document.getElementById('edit-word-chips');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (editingWords.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">単語がありません。</div>';
+      }
+
+      editingWords.forEach((wordObj, idx) => {
+        const chip = document.createElement('div');
+        chip.className = `word-chip${wordObj.selected ? ' selected' : ''}`;
+        chip.innerText = wordObj.text;
+        chip.onclick = () => toggleWordChipSelection(idx);
+        container.appendChild(chip);
+      });
+
+      updateWordBlockControlButtons();
+    }
+
+    function toggleWordChipSelection(idx) {
+      if (editingWords[idx]) {
+        editingWords[idx].selected = !editingWords[idx].selected;
+        renderWordChips();
+      }
+    }
+
+    function updateWordBlockControlButtons() {
+      const hasSelection = editingWords.some(w => w.selected);
+      const btnPrev = document.getElementById('btn-send-prev');
+      const btnNext = document.getElementById('btn-send-next');
+      
+      if (btnPrev) {
+        btnPrev.disabled = !hasSelection || editingSubIndex <= 0;
+      }
+      if (btnNext) {
+        btnNext.disabled = !hasSelection || editingSubIndex >= subtitleData.length - 1;
+      }
+      
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    }
+
+    function sendWordsToPrev() {
+      if (editingSubIndex <= 0) return;
+      
+      const selectedWords = editingWords.filter(w => w.selected).map(w => w.text);
+      if (selectedWords.length === 0) return;
+
+      const prevSub = subtitleData[editingSubIndex - 1];
+      const prevWords = prevSub.text.trim().split(/\s+/).filter(w => w.length > 0);
+      const newPrevWords = [...prevWords, ...selectedWords];
+      prevSub.text = newPrevWords.join(' ');
+
+      editingWords = editingWords.filter(w => !w.selected);
+      
+      const newCurrentText = editingWords.map(w => w.text).join(' ');
+      document.getElementById('edit-sub-text').value = newCurrentText;
+      
+      renderWordChips();
+      logMicDebug(`sendWordsToPrev: [${selectedWords.join(' ')}] を前の字幕に送りました。`);
+      alert(`選択した単語を前の字幕の末尾に送りました。\n前の字幕: "${prevSub.text}"`);
+    }
+
+    function sendWordsToNext() {
+      if (editingSubIndex >= subtitleData.length - 1) return;
+
+      const selectedWords = editingWords.filter(w => w.selected).map(w => w.text);
+      if (selectedWords.length === 0) return;
+
+      const nextSub = subtitleData[editingSubIndex + 1];
+      const nextWords = nextSub.text.trim().split(/\s+/).filter(w => w.length > 0);
+      const newNextWords = [...selectedWords, ...nextWords];
+      nextSub.text = newNextWords.join(' ');
+
+      editingWords = editingWords.filter(w => !w.selected);
+
+      const newCurrentText = editingWords.map(w => w.text).join(' ');
+      document.getElementById('edit-sub-text').value = newCurrentText;
+
+      renderWordChips();
+      logMicDebug(`sendWordsToNext: [${selectedWords.join(' ')}] を次の字幕に送りました。`);
+      alert(`選択した単語を次の字幕の先頭に送りました。\n次の字幕: "${nextSub.text}"`);
     }
 
     function adjustTime(type, delta) {
