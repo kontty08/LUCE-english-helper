@@ -783,6 +783,8 @@
     let mediaRecorder = null;
     let audioChunks = [];
     let liveRecognition = null; // リアルタイムプレビュー用
+    let stopTime = null;         // 特定字幕クリック時の自動停止時間
+    let seekingFromClick = false; // 字幕クリックによる再生フラグ
     let flaggedWords = [];
     let currentModalWordData = null;
     let videoId = 'K-o0r2zSgCE'; // Default fallback
