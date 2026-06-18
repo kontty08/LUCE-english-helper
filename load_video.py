@@ -151,10 +151,12 @@ def main():
             "subtitles": subtitles
         }
         
-        # Save to transcripts.json
-        output_path = Path(__file__).resolve().parent / "transcripts.json"
+        # Save to transcripts.js
+        output_path = Path(__file__).resolve().parent / "transcripts.js"
         with open(output_path, "w", encoding="utf-8") as out_f:
+            out_f.write("const transcriptsData = ")
             json.dump(data_to_save, out_f, ensure_ascii=False, indent=2)
+            out_f.write(";\n")
             
         print(f"🎉 成功: {len(subtitles)} 件の字幕を {output_path.name} に保存しました。")
         print("💡 ブラウザで index.html をリロード（またはダブルクリック）して学習を開始してください！")
