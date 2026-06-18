@@ -1441,9 +1441,22 @@
         return;
       }
 
+      const oldStart = subtitleData[editingSubIndex].start;
+      const oldEnd = subtitleData[editingSubIndex].end;
+
       subtitleData[editingSubIndex].text = newText;
       subtitleData[editingSubIndex].start = newStart;
       subtitleData[editingSubIndex].end = newEnd;
+
+      // ── 前後の字幕セグメントの時間を連動させて更新 ──
+      // 1. 開始時間が変更された場合、直前セグメントの終了時間を合わせる
+      if (editingSubIndex > 0 && newStart !== oldStart) {
+        subtitleData[editingSubIndex - 1].end = newStart;
+      }
+      // 2. 終了時間が変更された場合、直後セグメントの開始時間を合わせる
+      if (editingSubIndex < subtitleData.length - 1 && newEnd !== oldEnd) {
+        subtitleData[editingSubIndex + 1].start = newEnd;
+      }
 
       localStorage.setItem(`custom_subtitles_${videoId}`, JSON.stringify(subtitleData));
       renderSubtitles();
@@ -1452,7 +1465,7 @@
         setPracticeTarget(newText);
       }
 
-      alert("字幕の変更を保存しました。");
+      alert("字幕の変更を保存しました（前後の時間も自動的に連動して調整されました）。");
       closeEditSubModal();
     }
 
