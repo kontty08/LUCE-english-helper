@@ -1421,7 +1421,14 @@
         processSpeechResult(transcribedText);
       } catch (error) {
         console.error("Gemini API Error:", error);
-        micStatus.innerText = `❌ Geminiエラー: ${error.message}`;
+        let errorMsg = `❌ Geminiエラー: ${error.message}`;
+        
+        // Rate Limit (RESOURCE_EXHAUSTED) や 429 エラー時の親切なフォールバック表示
+        if (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('429') || error.message.includes('quota')) {
+          errorMsg = "⚠️ Gemini APIの利用制限（1分間に15回まで）に達しました。1〜2分ほど待ってから再度マイクをお試しいただくか、設定から別のAPIキーやモデルへの切り替えをお試しください。";
+        }
+        
+        micStatus.innerText = errorMsg;
         logMicDebug(`onerror (Gemini): ${error.message}`);
       }
     }
