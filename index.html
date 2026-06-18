@@ -896,7 +896,7 @@
     let audioChunks = [];
     let liveRecognition = null; // リアルタイムプレビュー用
     let stopTime = null;         // 特定字幕クリック時の自動停止時間
-    let seekingFromClick = false; // 字幕クリックによる再生フラグ
+    let seekingFromClick = 0;     // 字幕クリックによる再生フラグ (タイムスタンプ)
     let flaggedWords = [];
     let currentModalWordData = null;
     let videoId = 'K-o0r2zSgCE'; // Default fallback
@@ -1005,11 +1005,11 @@
     let progressInterval;
     function onPlayerStateChange(event) {
       if (event.data === YT.PlayerState.PLAYING) {
-        // 手動での再生開始時は自動停止を解除
-        if (!seekingFromClick) {
+        // 手動での再生開始時は自動停止を解除（1秒以内のシークイベントによるPLAYINGは除外）
+        const isClickAction = seekingFromClick && (Date.now() - seekingFromClick < 1000);
+        if (!isClickAction) {
           stopTime = null;
         }
-        seekingFromClick = false;
         progressInterval = setInterval(updateActiveSubtitle, 100); // 100msに縮めて精度向上
       } else {
         clearInterval(progressInterval);
@@ -1060,11 +1060,11 @@
       // 自動停止ターゲット設定
       if (subtitleData[index]) {
         stopTime = subtitleData[index].end;
-        seekingFromClick = true;
+        seekingFromClick = Date.now();
         logMicDebug(`seekTo: 停止ターゲットを設定しました (${stopTime}秒)`);
       } else {
         stopTime = null;
-        seekingFromClick = false;
+        seekingFromClick = 0;
       }
 
       player.seekTo(seconds, true);
@@ -1564,7 +1564,7 @@
       const end = parseFloat(document.getElementById('edit-sub-end').value) || 0;
       
       stopTime = end;
-      seekingFromClick = true;
+      seekingFromClick = Date.now();
       player.seekTo(start, true);
       player.playVideo();
       logMicDebug(`testPlayCurrentSegment: ${start}秒 〜 ${end}秒 を再生`);
