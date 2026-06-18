@@ -70,6 +70,91 @@ def parse_vtt(vtt_path):
                     
     return subtitles
 
+# ── 字幕のセンテンスベース再構成 ──────────────────────
+def reconstruct_into_sentences(raw_subtitles, max_words=20, max_duration=8.0):
+    """
+    生の字幕セグメントを、文（センテンス）ごとに再構成します。
+    時間の割り当ては単語数ベースで線形補間します。
+    """
+    # 省略語のリスト（これらの後ろのピリオドは文末とみなさない）
+    ABBREVIATIONS = {
+        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "vs", "co", "corp", "inc", "ltd",
+        "st", "ave", "rd", "etc", "approx", "eg", "ie", "al", "vol", "ed", "pp", "sec",
+        "min", "hr", "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec"
+    }
+
+    # 1. すべての単語をフラットなリストに分解し、時間情報を付与
+    all_words = []
+    for cue in raw_subtitles:
+        text = cue["text"].strip()
+        if not text:
+            continue
+        words = text.split()
+        if not words:
+            continue
+        
+        duration = cue["end"] - cue["start"]
+        word_dur = duration / len(words)
+        
+        for i, w in enumerate(words):
+            all_words.append({
+                "text": w,
+                "start": cue["start"] + i * word_dur,
+                "end": cue["start"] + (i + 1) * word_dur
+            })
+            
+    if not all_words:
+        return []
+
+    # 2. 単語リストを走査して、センテンスごとに結合
+    sentences = []
+    current_words = []
+    
+    def is_sentence_end(word_info):
+        word = word_info["text"]
+        # 末尾が . ? ! で終わるか判定（後ろにクォーテーション等があっても考慮）
+        if not re.search(r'[.?!]["\']?$', word):
+            return False
+            
+        # 省略語チェック（ピリオドや記号を除去した英単語が省略語リストに含まれるか）
+        cleaned = re.sub(r'[^\w]', '', word).lower()
+        if cleaned in ABBREVIATIONS:
+            return False
+            
+        return True
+
+    for w_info in all_words:
+        current_words.append(w_info)
+        
+        # 文末判定、または制限値（最大単語数や最大時間）を超えた場合
+        should_split = False
+        if is_sentence_end(w_info):
+            should_split = True
+        elif len(current_words) >= max_words:
+            should_split = True
+        elif (w_info["end"] - current_words[0]["start"]) >= max_duration:
+            should_split = True
+            
+        if should_split:
+            text = " ".join([x["text"] for x in current_words])
+            sentences.append({
+                "start": round(current_words[0]["start"], 2),
+                "end": round(current_words[-1]["end"], 2),
+                "text": text
+            })
+            current_words = []
+            
+    # 残った単語があれば追加
+    if current_words:
+        text = " ".join([x["text"] for x in current_words])
+        sentences.append({
+            "start": round(current_words[0]["start"], 2),
+            "end": round(current_words[-1]["end"], 2),
+            "text": text
+        })
+        
+    return sentences
+
 # ── ビデオIDの抽出 ───────────────────────────────────
 def extract_video_id(url_or_id):
     url_or_id = url_or_id.strip()
@@ -137,14 +222,18 @@ def main():
             
         # Parse VTT
         print("⚙️  字幕データをパースしています...")
-        subtitles = parse_vtt(vtt_file)
+        raw_subtitles = parse_vtt(vtt_file)
         
-        if not subtitles:
+        if not raw_subtitles:
             print("❌ エラー: 字幕のパース結果が空です。")
             if os.path.exists(vtt_file):
                 os.remove(vtt_file)
             sys.exit(1)
             
+        # Reconstruct into sentences
+        print("📝 字幕をセンテンスベースに再構成しています...")
+        subtitles = reconstruct_into_sentences(raw_subtitles)
+        
         # Structure new JSON
         data_to_save = {
             "videoId": video_id,
