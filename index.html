@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUCE — English Study Companion</title>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucid Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg-main: #090d16;
+      --bg-panel: #111827;
+      --bg-card: #1f2937;
+      --bg-card-hover: #374151;
+      
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      
+      --accent: #d946ef; /* Magenta */
+      --accent-glow: rgba(217, 70, 239, 0.4);
+      --accent-emerald: #10b981; /* Emerald */
+      --accent-emerald-glow: rgba(16, 185, 129, 0.3);
+      --accent-rose: #f43f5e; /* Rose */
+      
+      --border: #374151;
+      --border-focus: #4b5563;
+      
+      --font-title: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-main);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* Header */
+    header {
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-text {
+      font-family: var(--font-title);
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f472b6, #d946ef);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.05em;
+    }
+
+    .logo-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      border-left: 1px solid var(--border);
+      padding-left: 0.75rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* Layout Grid */
+    .dashboard {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+      height: calc(100vh - 70px);
+    }
+
+    /* Left Pane */
+    .left-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+
+    .video-wrapper {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      position: relative;
+    }
+
+    #player {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Practice Card */
+    .practice-card {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      font-family: var(--font-title);
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .target-segment-box {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-size: 1.05rem;
+      line-height: 1.5;
+      min-height: 70px;
+      position: relative;
+    }
+
+    .clickable-word {
+      display: inline-block;
+      cursor: pointer;
+      padding: 0 2px;
+      border-radius: 3px;
+      transition: all 0.2s;
+    }
+    .clickable-word:hover {
+      background-color: var(--accent);
+      color: white;
+    }
+
+    .recording-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-mic {
+      background: linear-gradient(135deg, #d946ef, #a21caf);
+      border: none;
+      color: white;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(217, 70, 239, 0.3);
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    .btn-mic:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(217, 70, 239, 0.5);
+    }
+
+    .btn-mic.recording {
+      background: var(--accent-rose);
+      animation: pulse 1.5s infinite;
+      box-shadow: 0 4px 15px rgba(244, 63, 94, 0.5);
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    .mic-status {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .result-box {
+      background-color: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 60px;
+      line-height: 1.5;
+    }
+
+    .word-correct {
+      color: var(--accent-emerald);
+      font-weight: 500;
+      border-bottom: 2px solid var(--accent-emerald-glow);
+    }
+
+    .word-incorrect {
+      color: var(--accent-rose);
+      font-weight: 500;
+      border-bottom: 2px solid rgba(244, 63, 94, 0.2);
+    }
+
+    /* Right Pane */
+    .right-pane {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .tabs-header {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background-color: rgba(17, 24, 39, 0.6);
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 1rem;
+      cursor: pointer;
+      font-family: var(--font-title);
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+      background-color: rgba(217, 70, 239, 0.03);
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .tab-pane {
+      display: none;
+      height: 100%;
+    }
+
+    .tab-pane.active {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* Subtitle Item */
+    .sub-item {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .sub-item:hover {
+      background-color: var(--bg-card-hover);
+      border-color: var(--border-focus);
+    }
+
+    .sub-item.active {
+      border-color: var(--accent);
+      background-color: rgba(217, 70, 239, 0.04);
+      box-shadow: inset 0 0 10px rgba(217, 70, 239, 0.05);
+    }
+
+    .sub-time {
+      font-size: 0.75rem;
+      font-family: var(--font-title);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .sub-text {
+      font-size: 0.95rem;
+      line-height: 1.4;
+      color: var(--text-main);
+    }
+
+    /* Vocab Cards */
+    .vocab-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .vocab-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .vocab-card:hover {
+      border-color: var(--accent);
+    }
+
+    .vocab-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .vocab-word {
+      font-family: var(--font-title);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .btn-delete {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .btn-delete:hover {
+      color: var(--accent-rose);
+    }
+
+    .vocab-def {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .vocab-example {
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-style: italic;
+      border-left: 2px solid var(--accent);
+      padding-left: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .translation-toggle {
+      font-size: 0.75rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-decoration: underline;
+      align-self: flex-start;
+      margin-top: 0.25rem;
+    }
+
+    .translation-toggle:hover {
+      color: var(--text-main);
+    }
+
+    .vocab-ja {
+      display: none;
+      font-size: 0.85rem;
+      color: var(--accent-emerald);
+      background-color: rgba(16, 185, 129, 0.05);
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.25rem;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      color: var(--text-muted);
+      height: 200px;
+      text-align: center;
+    }
+
+    /* Modal / Popup for Single Word Details */
+    .dict-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(9, 13, 22, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .dict-content {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 500px;
+      padding: 2rem;
+      position: relative;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      animation: modalSlide 0.3s ease-out;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    @keyframes modalSlide {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-word-title {
+      font-family: var(--font-title);
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .modal-phonetic {
+      font-size: 0.95rem;
+      color: var(--accent);
+      font-family: var(--font-title);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-speak-btn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+    }
+
+    .modal-meanings {
+      max-height: 250px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding-right: 0.5rem;
+    }
+
+    .meaning-group {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+    }
+    .meaning-group:last-child {
+      border-bottom: none;
+    }
+
+    .part-of-speech {
+      font-family: var(--font-title);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      margin-bottom: 0.35rem;
+    }
+
+    .modal-definition {
+      font-size: 0.95rem;
+      line-height: 1.4;
+      color: var(--text-main);
+    }
+
+    .modal-example {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-top: 0.25rem;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+
+    .btn-add-word {
+      background: var(--accent-emerald);
+      border: none;
+      color: white;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .btn-add-word:hover {
+      background-color: #059669;
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <div class="logo-text">LUCE</div>
+      <div class="logo-sub">Study Companion</div>
+    </div>
+  </header>
+
+  <div class="dashboard">
+    <!-- Left: Video & Practice Panel -->
+    <div class="left-pane">
+      <div class="video-wrapper">
+        <div id="player"></div>
+      </div>
+
+      <div class="practice-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i data-lucide="mic"></i>
+            発音練習 & スピーキングチェック
+          </div>
+          <div id="accuracy-score" style="font-family: var(--font-title); font-weight: 700; color: var(--accent-emerald);"></div>
+        </div>
+
+        <div class="target-segment-box" id="practice-target">
+          字幕を選択するか動画を再生すると、ここに練習用テキストが表示されます。単語をクリックすると英英辞書が開きます。
+        </div>
+
+        <div class="recording-controls">
+          <button class="btn-mic" id="btn-record">
+            <i data-lucide="mic"></i>
+          </button>
+          <div class="mic-status" id="mic-status">ボタンを押してマイクを起動し、読み上げてください。</div>
+        </div>
+
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">判定結果:</div>
+        <div class="result-box" id="practice-result">
+          マイクで話した内容がここに差分表示されます。
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Subtitles & Vocab Tabs -->
+    <div class="right-pane">
+      <div class="tabs-header">
+        <button class="tab-btn active" onclick="switchTab('subtitles')">
+          <i data-lucide="align-left"></i>
+          字幕スクロール
+        </button>
+        <button class="tab-btn" onclick="switchTab('vocab')">
+          <i data-lucide="bookmark"></i>
+          フラグ英単語帳 (<span id="vocab-count">0</span>)
+        </button>
+      </div>
+
+      <div class="tab-content">
+        <!-- Subtitles Pane -->
+        <div class="tab-pane active" id="pane-subtitles">
+          <div style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 0.75rem;" id="subtitles-list">
+            <!-- Dynamic Subtitle list items -->
+          </div>
+        </div>
+
+        <!-- Vocab Pane -->
+        <div class="tab-pane" id="pane-vocab">
+          <div class="vocab-list" id="vocab-list">
+            <!-- Flagged Words -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dict Modal -->
+  <div class="dict-modal" id="dict-modal">
+    <div class="dict-content">
+      <button class="modal-close" onclick="closeModal()"><i data-lucide="x"></i></button>
+      <div class="modal-word-title" id="modal-word">Loading...</div>
+      <div class="modal-phonetic">
+        <span id="modal-phonetic-text"></span>
+        <button class="modal-speak-btn" onclick="speakWord()"><i data-lucide="volume-2"></i></button>
+      </div>
+      
+      <div class="modal-meanings" id="modal-meanings">
+        <!-- Meanings and examples -->
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-add-word" onclick="addCurrentWord()">この単語をフラグする</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube Player API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    let player;
+    let subtitleData = [];
+    let activeSubIndex = -1;
+    let isRecording = false;
+    let recognition;
+    let flaggedWords = [];
+    let currentModalWordData = null;
+
+    // Load transcripts.json
+    async function loadTranscripts() {
+      try {
+        const response = await fetch('transcripts.json');
+        subtitleData = await response.json();
+        renderSubtitles();
+      } catch (e) {
+        console.error("字幕データの読み込みに失敗しました:", e);
+        document.getElementById('subtitles-list').innerHTML = `
+          <div class="empty-state">
+            <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: var(--accent-rose);"></i>
+            <div>transcripts.json が見つかりません。<br>VTTから変換された字幕データが必要です。</div>
+          </div>
+        `;
+      }
+    }
+
+    // Render Subtitles
+    function renderSubtitles() {
+      const listContainer = document.getElementById('subtitles-list');
+      listContainer.innerHTML = '';
+      
+      subtitleData.forEach((sub, index) => {
+        const item = document.createElement('div');
+        item.className = 'sub-item';
+        item.id = `sub-item-${index}`;
+        item.onclick = () => seekTo(sub.start, index);
+
+        // Format seconds to mm:ss
+        const formatTime = (sec) => {
+          const m = Math.floor(sec / 60);
+          const s = Math.floor(sec % 60).toString().padStart(2, '0');
+          return `${m}:${s}`;
+        };
+
+        item.innerHTML = `
+          <div class="sub-time">${formatTime(sub.start)}</div>
+          <div class="sub-text">${sub.text}</div>
+        `;
+        listContainer.appendChild(item);
+      });
+    }
+
+    // YouTube Player Initialization
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        videoId: 'K-o0r2zSgCE',
+        playerVars: {
+          'playsinline': 1,
+          'rel': 0,
+          'modestbranding': 1
+        },
+        events: {
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    }
+
+    let progressInterval;
+    function onPlayerStateChange(event) {
+      if (event.data === YT.PlayerState.PLAYING) {
+        progressInterval = setInterval(updateActiveSubtitle, 250);
+      } else {
+        clearInterval(progressInterval);
+      }
+    }
+
+    // Update Highlighted Subtitle based on video time
+    function updateActiveSubtitle() {
+      if (!player || !player.getCurrentTime) return;
+      const currentTime = player.getCurrentTime();
+      
+      const index = subtitleData.findIndex(
+        sub => currentTime >= sub.start && currentTime <= sub.end
+      );
+
+      if (index !== -1 && index !== activeSubIndex) {
+        // Remove previous active class
+        if (activeSubIndex !== -1) {
+          const prev = document.getElementById(`sub-item-${activeSubIndex}`);
+          if (prev) prev.classList.remove('active');
+        }
+
+        activeSubIndex = index;
+        const currentItem = document.getElementById(`sub-item-${index}`);
+        if (currentItem) {
+          currentItem.classList.add('active');
+          // Auto-scroll inside list container
+          currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Set practice target text
+        setPracticeTarget(subtitleData[index].text);
+      }
+    }
+
+    function seekTo(seconds, index) {
+      if (!player) return;
+      player.seekTo(seconds, true);
+      player.playVideo();
+      
+      // Update UI immediately
+      if (activeSubIndex !== -1) {
+        const prev = document.getElementById(`sub-item-${activeSubIndex}`);
+        if (prev) prev.classList.remove('active');
+      }
+      activeSubIndex = index;
+      const currentItem = document.getElementById(`sub-item-${index}`);
+      if (currentItem) {
+        currentItem.classList.add('active');
+      }
+      setPracticeTarget(subtitleData[index].text);
+    }
+
+    // Make text words clickable
+    function setPracticeTarget(text) {
+      const targetBox = document.getElementById('practice-target');
+      
+      // Clean punctuation for individual word clicking, but preserve rendering
+      const words = text.split(" ");
+      targetBox.innerHTML = '';
+      
+      words.forEach(word => {
+        const span = document.createElement('span');
+        span.className = 'clickable-word';
+        // Clean word for dictionary lookup
+        const cleanWord = word.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"]/g, "");
+        span.innerText = word + " ";
+        span.onclick = (e) => {
+          e.stopPropagation();
+          lookupWord(cleanWord);
+        };
+        targetBox.appendChild(span);
+      });
+    }
+
+    // Dictionary Lookup via API
+    async function lookupWord(word) {
+      if (!word) return;
+      
+      const modal = document.getElementById('dict-modal');
+      const title = document.getElementById('modal-word');
+      const phonetic = document.getElementById('modal-phonetic-text');
+      const meaningsBox = document.getElementById('modal-meanings');
+      
+      title.innerText = word;
+      phonetic.innerText = '';
+      meaningsBox.innerHTML = 'Loading dictionary...';
+      modal.style.display = 'flex';
+
+      currentModalWordData = { word: word };
+
+      try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+        if (!response.ok) throw new Error("Not found");
+        const data = await response.json();
+        const entry = data[0];
+
+        phonetic.innerText = entry.phonetic || (entry.phonetics && entry.phonetics[0] ? entry.phonetics[0].text : '');
+        
+        meaningsBox.innerHTML = '';
+        entry.meanings.forEach(meaning => {
+          const group = document.createElement('div');
+          group.className = 'meaning-group';
+          
+          const pos = document.createElement('div');
+          pos.className = 'part-of-speech';
+          pos.innerText = meaning.partOfSpeech;
+          
+          const def = document.createElement('div');
+          def.className = 'modal-definition';
+          def.innerText = meaning.definitions[0].definition;
+
+          group.appendChild(pos);
+          group.appendChild(def);
+
+          if (meaning.definitions[0].example) {
+            const ex = document.createElement('div');
+            ex.className = 'modal-example';
+            ex.innerText = `e.g. ${meaning.definitions[0].example}`;
+            group.appendChild(ex);
+          }
+          
+          meaningsBox.appendChild(group);
+        });
+
+        // Store definition details for saving to vocab
+        currentModalWordData.definition = entry.meanings[0].definitions[0].definition;
+        currentModalWordData.example = entry.meanings[0].definitions[0].example || '';
+        
+      } catch (e) {
+        meaningsBox.innerHTML = 'English definition not found. You can still flag this word.';
+        currentModalWordData.definition = 'No definition found';
+        currentModalWordData.example = '';
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('dict-modal').style.display = 'none';
+      currentModalWordData = null;
+    }
+
+    // Speak Word using TTS
+    function speakWord() {
+      if (!currentModalWordData) return;
+      const utterance = new SpeechSynthesisUtterance(currentModalWordData.word);
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Save Flagged Word to list
+    function addCurrentWord() {
+      if (!currentModalWordData) return;
+      
+      const wordObj = {
+        word: currentModalWordData.word,
+        definition: currentModalWordData.definition,
+        example: currentModalWordData.example,
+        id: Date.now()
+      };
+
+      if (!flaggedWords.some(w => w.word.toLowerCase() === wordObj.word.toLowerCase())) {
+        flaggedWords.push(wordObj);
+        saveVocabToStorage();
+        renderVocabList();
+      }
+      closeModal();
+    }
+
+    function removeWord(id) {
+      flaggedWords = flaggedWords.filter(w => w.id !== id);
+      saveVocabToStorage();
+      renderVocabList();
+    }
+
+    function saveVocabToStorage() {
+      localStorage.setItem('luce_vocab', JSON.stringify(flaggedWords));
+      document.getElementById('vocab-count').innerText = flaggedWords.length;
+    }
+
+    function loadVocabFromStorage() {
+      const stored = localStorage.getItem('luce_vocab');
+      if (stored) {
+        flaggedWords = JSON.parse(stored);
+        document.getElementById('vocab-count').innerText = flaggedWords.length;
+      }
+    }
+
+    // Fetch Japanese Translation using free Google Translate fallback
+    async function showTranslation(word, elementId) {
+      const el = document.getElementById(elementId);
+      if (el.style.display === 'block') {
+        el.style.display = 'none';
+        return;
+      }
+      
+      el.innerText = 'Translating...';
+      el.style.display = 'block';
+
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=${encodeURIComponent(word)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const translated = data[0][0][0];
+        el.innerText = translated;
+      } catch (e) {
+        el.innerText = '翻訳できませんでした';
+      }
+    }
+
+    // Render flagged words list
+    function renderVocabList() {
+      const list = document.getElementById('vocab-list');
+      list.innerHTML = '';
+
+      if (flaggedWords.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <i data-lucide="bookmark" style="width: 36px; height: 36px;"></i>
+            <div>フラグされた単語はありません。<br>字幕の単語をクリックして追加してください。</div>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      flaggedWords.forEach(w => {
+        const card = document.createElement('div');
+        card.className = 'vocab-card';
+        card.innerHTML = `
+          <div class="vocab-header">
+            <div class="vocab-word">${w.word}</div>
+            <button class="btn-delete" onclick="removeWord(${w.id})"><i data-lucide="trash-2"></i></button>
+          </div>
+          <div class="vocab-def">${w.definition}</div>
+          ${w.example ? `<div class="vocab-example">${w.example}</div>` : ''}
+          <button class="translation-toggle" onclick="showTranslation('${w.word}', 'trans-${w.id}')">日本語訳を表示</button>
+          <div class="vocab-ja" id="trans-${w.id}"></div>
+        `;
+        list.appendChild(card);
+      });
+      
+      lucide.createIcons();
+    }
+
+    // Tab Switch
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+      if (tab === 'subtitles') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('pane-subtitles').classList.add('active');
+      } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('pane-vocab').classList.add('active');
+        renderVocabList();
+      }
+    }
+
+    // Web Speech API / Mic Setup
+    function setupMic() {
+      const recordBtn = document.getElementById('btn-record');
+      const micStatus = document.getElementById('mic-status');
+      
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        micStatus.innerText = "このブラウザは音声認識に対応していません。（Chrome/Safari推奨）";
+        recordBtn.style.opacity = '0.5';
+        recordBtn.style.cursor = 'not-allowed';
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        isRecording = true;
+        recordBtn.classList.add('recording');
+        micStatus.innerText = "録音中... 字幕に合わせて発音してください。";
+      };
+
+      recognition.onerror = (e) => {
+        console.error(e);
+        micStatus.innerText = "音声認識エラーが発生しました。";
+        stopRecording();
+      };
+
+      recognition.onend = () => {
+        stopRecording();
+      };
+
+      recognition.onresult = (event) => {
+        const speechResult = event.results[0][0].transcript;
+        processSpeechResult(speechResult);
+      };
+
+      recordBtn.onclick = () => {
+        if (isRecording) {
+          recognition.stop();
+        } else {
+          // Get the target text
+          const targetBox = document.getElementById('practice-target');
+          if (targetBox.innerText.includes('字幕を選択するか')) {
+            micStatus.innerText = "先に字幕をクリックするか動画を再生してください。";
+            return;
+          }
+          recognition.start();
+        }
+      };
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      document.getElementById('btn-record').classList.remove('recording');
+      document.getElementById('mic-status').innerText = "ボタンを押してマイクを起動し、読み上げてください。";
+    }
+
+    // Speech Evaluation Difference Algorithm
+    function processSpeechResult(spokenText) {
+      // Get target plain text
+      const targetText = subtitleData[activeSubIndex] ? subtitleData[activeSubIndex].text : '';
+      if (!targetText) return;
+
+      const cleanText = (str) => str.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"]/g, "").trim();
+      
+      const origWords = cleanText(targetText).split(/\s+/);
+      const spokWords = cleanText(spokenText).split(/\s+/);
+
+      const resultBox = document.getElementById('practice-result');
+      const accuracyBox = document.getElementById('accuracy-score');
+      
+      // Calculate matching accuracy (simple word presence)
+      let correctCount = 0;
+      let htmlOutput = '';
+
+      origWords.forEach(word => {
+        const spokenIndex = spokWords.indexOf(word);
+        if (spokenIndex !== -1) {
+          htmlOutput += `<span class="word-correct">${word}</span> `;
+          correctCount++;
+          // Remove to avoid double matching
+          spokWords.splice(spokenIndex, 1);
+        } else {
+          htmlOutput += `<span class="word-incorrect">${word}</span> `;
+        }
+      });
+
+      const accuracy = Math.round((correctCount / origWords.length) * 100);
+      
+      accuracyBox.innerText = `精度: ${accuracy}%`;
+      resultBox.innerHTML = `
+        <div style="font-weight: 500; font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--text-muted);">
+          認識された音声: "${spokenText}"
+        </div>
+        <div>
+          結果比較: ${htmlOutput}
+        </div>
+      `;
+    }
+
+    // App Startup
+    window.onload = () => {
+      loadTranscripts();
+      loadVocabFromStorage();
+      setupMic();
+      lucide.createIcons();
+    };
+  </script>
+</body>
+</html>
