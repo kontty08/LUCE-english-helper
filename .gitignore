@@ -17,3 +17,19 @@ Thumbs.db
 
 # ZIP archives
 *.zip
+
+# Local video/subtitle data (personal learning content — do not publish)
+transcripts.js
+transcripts/
+
+# Local session & transcript logs
+transcript.jsonl
+transcript_full.jsonl
+
+# Temporary scripts
+.tmp_*.py
+
+# Personal notes / drafts
+development_history.md
+note_article_*.md
+thumbnail_prompt_methodology.md
