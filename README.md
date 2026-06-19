@@ -43,7 +43,7 @@ LUCE is a lightweight, browser-based English learning tool built around YouTube 
    - **Reset** all edits to the original downloaded subtitles via **Gemini 設定 → 字幕タイミングのリセット**.
 
 6. **Visual Word Block Editor**
-   - In edit mode, each word in a subtitle becomes a draggable chip.
+   - In edit mode, each word in a subtitle becomes a clickable chip.
    - Click a chip then press **← Prev** or **Next →** to move it to an adjacent subtitle card.
    - Useful for fixing word-boundary mistakes in auto-generated subtitles.
 
@@ -130,7 +130,7 @@ http://127.0.0.1:8000
 
 ### Step 5 — Import a YouTube video
 1. Click **動画の取り込み** (green button, top-right).
-2. Paste a YouTube URL or Video ID (e.g. `https://www.youtube.com/watch?v=xxxxxxxx` or just `xxxxxxxx`).
+2. Paste a YouTube URL or Video ID (e.g. `https://www.youtube.com/watch?v=xxxxxxxxxxx` or just `xxxxxxxxxxx`).
 3. Click **取り込む**.
 4. LUCE downloads English subtitles via `yt-dlp` and loads the video. This takes a few seconds.
 
