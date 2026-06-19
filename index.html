@@ -825,8 +825,7 @@
       cursor: not-allowed;
     }
   </style>
-  <!-- Data file loaded via script tag to bypass CORS on local file:// opens -->
-  <script src="transcripts.js"></script>
+  <!-- transcripts.js is intentionally omitted: data is served via /api/* endpoints -->
 </head>
 <body>
 
@@ -2136,14 +2135,10 @@
       closeEditSubModal();
     }
 
-    function resetSubtitles() {
+    async function resetSubtitles() {
       if (confirm("すべての字幕の編集（タイミングおよびテキスト）を消去して初期状態に戻しますか？")) {
         localStorage.removeItem(`custom_subtitles_${videoId}`);
-        if (typeof transcriptsData !== 'undefined' && transcriptsData.subtitles) {
-          subtitleData = JSON.parse(JSON.stringify(transcriptsData.subtitles));
-        } else {
-          subtitleData = [];
-        }
+        await loadVideoData(videoId);
         renderSubtitles();
         alert("字幕タイミングを初期状態にリセットしました。");
         closeSettingsModal();
